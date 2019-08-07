@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-community/async-storage';
 import StringifyDataWriter from "./stringify-data-writer";
 import moment from "moment";
+import apisauce from 'apisauce';
+import _ from 'lodash';
 
 export default class StorageServerHocWriter {
     static SERVER_SEND_STORAGE_KEY = "debug-rows-SERVER_SEND_STORAGE_KEY";
@@ -93,6 +95,7 @@ export default class StorageServerHocWriter {
                 );
             } finally {
                 setTimeout(() => {
+                    this.initalSendToServerPromise = null;
                     this.sendToServerLoop();
                 }, this.options.sendInterval);
             }
@@ -125,20 +128,17 @@ export default class StorageServerHocWriter {
                     extraData: this.options.getExtraData(),
                 };
                 this.log(`Sending ${rowsToSend.length} log-rows to server`);
-                const response = await fetch(this.options.serverUrl, {
-                    method: "POST",
-                    body: this.options.serializeData
-                        ? this.options.serializeData(data)
-                        : JSON.stringify(data),
-                    headers: {
-                        Accept: "application/json",
-                        "Content-Type": "application/json",
-                    },
+
+                const api = apisauce.create({
+                    baseURL: this.options.serverUrl,
+                    timeout: 9000,
                 });
-                if (!response.ok) {
-                    this.log(response);
-                    throw new Error("Failed sending logRows to server");
-                }
+
+                const response = await api.post('/', this.options.serializeData
+                        ? this.options.serializeData(data)
+                        : JSON.stringify(data)
+                );
+
                 sentToServerRows.forEach(row => (row.success = true));
                 rowsToSend.forEach(row => this.removeFromSendQueue(row));
                 return rowsToSend;
@@ -158,7 +158,7 @@ export default class StorageServerHocWriter {
 
     getPostData(batchSize) {
         if (this.sendQueue && this.sendQueue.length) {
-            const rowsToSend = this.sendQueue.slice(0, batchSize);
+            const rowsToSend = _.takeRight(this.sendQueue, batchSize);
             if (rowsToSend && rowsToSend.length) {
                 let sentToServerRows = rowsToSend.map(rowToSend => {
                     let sentToServerRow = this.sentToServerRows.find(
