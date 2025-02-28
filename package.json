@@ -20,7 +20,7 @@
   "license": "MIT",
   "dependencies": {
     "@react-native-community/async-storage": "^1.5.1",
-    "@react-native-community/netinfo": "^6.0.2",
+    "@react-native-community/netinfo": "^9.3.7",
     "debounce": "^1.0.2",
     "json-stringify-safe": "^5.0.1",
     "moment": "^2.18.1",
