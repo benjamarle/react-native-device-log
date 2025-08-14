@@ -19,7 +19,7 @@ const DEFAULT_SELECT_COLOR = "#292929";
 const DEFAULT_SEPARATOR_COLOR = "rgb(252, 217, 28)";
 const DEFAULT_BACKGROUND_COLOR = "#181818";
 const DEFAULT_TEXT_COLOR = "#D6D6D6";
-const LISTVIEW_REF = "listview";
+
 
 export default class Debug extends React.Component {
 
@@ -27,6 +27,7 @@ export default class Debug extends React.Component {
         super(props);
 
         this.preparedRows = { blob: {} };
+        this.listViewRef = React.createRef();
         this.state = {
             dataSource: [],
             paused: props.paused,
@@ -240,8 +241,8 @@ export default class Debug extends React.Component {
     }
 
     onCenterColumnPressed() {
-        if (this.refs[LISTVIEW_REF]) {
-            this.refs[LISTVIEW_REF].scrollTo({ x: 0, y: 0, animated: true });
+        if (this.listViewRef.current) {
+            this.listViewRef.current.scrollTo({ x: 0, y: 0, animated: true });
         }
     }
 
@@ -297,7 +298,7 @@ export default class Debug extends React.Component {
                             />
                         )}
                         enableEmptySections={true}
-                        ref={LISTVIEW_REF}
+                        ref={this.listViewRef}
                         data={this.state.dataSource}
                         renderItem={this._renderRow.bind(this)}
                         keyExtractor={this._getRowKey.bind(this)}
