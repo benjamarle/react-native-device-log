@@ -26,6 +26,7 @@ export interface DebugServiceOptions {
     rowInsertDebounceMs: number,
     logAppState: boolean,
     logConnection: boolean,
+    hideSystemLogs: boolean,
 }
 
 export interface StorageAdapter {

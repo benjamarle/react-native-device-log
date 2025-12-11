@@ -38,6 +38,7 @@ class DebugService {
             rowInsertDebounceMs: 200,
             logAppState: true,
             logConnection: true,
+            hideSystemLogs: false,
             ...options,
         };
 
@@ -392,10 +393,16 @@ class DebugService {
     }
 
     getEmittableData(rows) {
-        if (this.options.maxNumberToRender !== 0) {
-            return rows.slice(0, this.options.maxNumberToRender);
+        let filteredRows = rows;
+
+        if (this.options.hideSystemLogs) {
+            filteredRows = rows.filter(row => row.level !== 'separator');
         }
-        return rows;
+
+        if (this.options.maxNumberToRender !== 0) {
+            return filteredRows.slice(0, this.options.maxNumberToRender);
+        }
+        return filteredRows;
     }
 }
 
