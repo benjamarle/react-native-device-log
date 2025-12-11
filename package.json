@@ -19,6 +19,7 @@
   "author": "Olof Dahlbom",
   "license": "MIT",
   "dependencies": {
+    "@babel/runtime": "^7.28.4",
     "@react-native-community/async-storage": "^1.5.1",
     "@react-native-community/netinfo": "11.4.1",
     "debounce": "^1.0.2",
