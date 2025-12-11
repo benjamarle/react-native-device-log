@@ -6,7 +6,6 @@ import {
     FlatList,
     Animated,
     TouchableOpacity,
-    PixelRatio,
     NativeModules,
     LayoutAnimation,
 } from "react-native";
@@ -14,11 +13,11 @@ import debugService from "./debug-service";
 import InvertibleScrollView from "react-native-invertible-scroll-view";
 const NativeAnimatedModule = NativeModules.NativeAnimatedModule;
 
-const DEFAULT_BORDER_COLOR = "#3b3b3b";
-const DEFAULT_SELECT_COLOR = "#292929";
-const DEFAULT_SEPARATOR_COLOR = "rgb(252, 217, 28)";
-const DEFAULT_BACKGROUND_COLOR = "#181818";
-const DEFAULT_TEXT_COLOR = "#D6D6D6";
+const DEFAULT_BORDER_COLOR = "#2a2a2a";
+const DEFAULT_SELECT_COLOR = "#1e1e1e";
+const DEFAULT_SEPARATOR_COLOR = "#ffd60a";
+const DEFAULT_BACKGROUND_COLOR = "#0d0d0d";
+const DEFAULT_TEXT_COLOR = "#e0e0e0";
 
 
 export default class Debug extends React.Component {
@@ -37,7 +36,7 @@ export default class Debug extends React.Component {
     }
 
     prepareRows(rows) {
-        return rows.reduce((o, m, i) => {
+        return rows.reduce((o, m) => {
             const previousRender =
                 this.preparedRows !== undefined
                     ? this.preparedRows[m.id]
@@ -95,16 +94,24 @@ export default class Debug extends React.Component {
     }
 
     onRowPress(rowID) {
-        const rowBefore = this.preparedRows[rowID];
-        if (this.props.multiExpanded) {
-            const row = this.state.rows.find(row => row.id === rowID);
-            row.expanded = !row.expanded;
-        } else {
-            this.state.rows.forEach(row => {
-                row.expanded = row.id === rowID && !row.expanded;
-            });
-        }
-        this.preparedRows = this.prepareRows(this.state.rows);
+        // Create a new array to avoid mutating state directly
+        const updatedRows = this.state.rows.map(row => {
+            if (this.props.multiExpanded) {
+                // Multi-expand mode: toggle only the clicked row
+                if (row.id === rowID) {
+                    return { ...row, expanded: !row.expanded };
+                }
+                return row;
+            } else {
+                // Single-expand mode: collapse all others, toggle clicked row
+                return {
+                    ...row,
+                    expanded: row.id === rowID ? !row.expanded : false
+                };
+            }
+        });
+
+        this.preparedRows = this.prepareRows(updatedRows);
         LayoutAnimation.configureNext({
             update: {
                 springDamping: 0.7,
@@ -117,6 +124,7 @@ export default class Debug extends React.Component {
             rowsToRender = Object.values(this.preparedRows);
         }
         this.setState({
+            rows: updatedRows,
             dataSource: rowsToRender
         });
     }
@@ -171,12 +179,7 @@ export default class Debug extends React.Component {
                 onLayout={this.onRowLayout.bind(this, rowData)}
             >
                 <TouchableOpacity
-                    style={[
-                        this.styleSheet.debugRowContainerButton,
-                        {
-                            maxHeight: rowData.expanded ? undefined : 25,
-                        },
-                    ]}
+                    style={this.styleSheet.debugRowContainerButton}
                     onPress={this.onRowPress.bind(this, rowID)}
                 >
                     {this.props.renderLevel && <Text
@@ -192,6 +195,8 @@ export default class Debug extends React.Component {
                                 color: rowData.color,
                             },
                         ]}
+                        numberOfLines={rowData.expanded ? undefined : 1}
+                        ellipsizeMode="tail"
                     >
                         {rowData.message}
                     </Text>
@@ -315,49 +320,62 @@ const getStyleSheet = (props)=>{
         container: {
             flex: 1,
             backgroundColor: props.backgroundColor,
-            paddingTop: 5,
         },
         toolBar: {
             backgroundColor: props.backgroundColor,
             flexDirection: "row",
-            padding: 10,
-            borderBottomWidth: 2,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 1,
             borderColor: props.borderColor,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+            elevation: 4,
         },
         toolbarButton: {
-            padding: 7,
-            borderWidth: 2,
-            borderRadius: 7,
-            borderColor: props.borderColor,
+            paddingVertical: 8,
+            paddingHorizontal: 16,
+            borderRadius: 8,
+            backgroundColor: props.borderColor,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.2,
+            shadowRadius: 2,
+            elevation: 2,
         },
         centerColumn: {
             flex: 1,
             alignItems: "center",
             justifyContent: "center",
+            paddingHorizontal: 12,
         },
         titleText: {
             color: props.textColor,
-            fontWeight: "bold",
+            fontWeight: "600",
             fontFamily: "System",
-            fontSize: 16,
-            alignSelf: "center",
-            textAlign: "center",
+            fontSize: 15,
+            letterSpacing: 0.3,
+            opacity: 0.9,
         },
         toolbarButtonText: {
             color: props.textColor,
             fontFamily: "System",
-            fontSize: 12,
+            fontSize: 13,
+            fontWeight: "500",
         },
         listContainer: {
             flex: 1,
         },
         debugRowContainer: {
-            padding: 5,
+            paddingVertical: 10,
+            paddingHorizontal: 12,
             flex: 1,
             flexDirection: "row",
             backgroundColor: props.backgroundColor,
             borderStyle: "solid",
-            borderBottomWidth: 1 / PixelRatio.get(),
+            borderBottomWidth: 1,
             borderBottomColor: props.borderColor,
         },
         debugRowContainerButton: {
@@ -368,26 +386,31 @@ const getStyleSheet = (props)=>{
         logRowMessage: {
             color: props.textColor,
             fontFamily: "System",
-            fontSize: 11,
-            paddingHorizontal: 5,
+            fontSize: 13,
+            paddingHorizontal: 8,
             lineHeight: 20,
         },
         logRowMessageBold: {
-            fontWeight: "bold",
+            fontWeight: "700",
         },
         logRowLevelLabel: {
-            minWidth: 80,
-            fontWeight: "bold",
+            minWidth: 85,
+            fontWeight: "700",
+            fontSize: 12,
+            letterSpacing: 0.5,
+            opacity: 0.85,
         },
         logRowMessageSeparator: {
-            fontSize: 11,
-            fontWeight: "bold",
+            fontSize: 12,
+            fontWeight: "700",
             textAlign: "center",
             color: props.separatorColor,
+            letterSpacing: 1,
         },
         separator: {
-            fontSize: 18,
+            fontSize: 16,
             color: props.separatorColor,
+            fontWeight: "700",
         },
         logRowMessageMain: {
             flex: 1,
