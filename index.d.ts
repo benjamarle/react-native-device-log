@@ -1,7 +1,9 @@
-import { DebugServiceOptions } from './index.d';
-import { deviceLog } from './index';
+import * as React from 'react';
+import { ViewStyle } from 'react-native';
 
 declare var deviceLog: DebugService
+
+export const LogView: React.ComponentType<LogViewProps>
 
 export enum LogLevel {
     log = "log",
@@ -91,4 +93,31 @@ export interface DebugService {
 
     logToConsole(level: LogLevel, color: Color, ...logRows: string[]): void
 
+    onDebugRowsChanged(callback: (rows: LogRow[]) => void): () => void
+
 }
+
+export interface LogViewProps {
+    inverted?: boolean
+    multiExpanded?: boolean
+    timeStampFormat?: string
+    renderTimestamp?: boolean
+    renderLevel?: boolean
+    paused?: boolean
+    textColor?: string
+    backgroundColor?: string
+    borderColor?: string
+    separatorColor?: string
+    renderToolbar?: (options: ToolbarOptions) => React.ReactNode
+}
+
+export interface ToolbarOptions {
+    onPause: () => void
+    onClear: () => void
+    onFilter: () => void
+    length: any[]
+}
+
+export const debugListView: React.ComponentType<any>
+
+export { deviceLog }

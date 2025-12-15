@@ -31,6 +31,20 @@ export default class Debug extends React.Component {
             dataSource: [],
             paused: props.paused,
             rows: [],
+            showFilterMenu: false,
+            logLevelFilters: {
+                log: true,
+                debug: true,
+                info: true,
+                error: true,
+                fatal: true,
+                success: true,
+                separator: true,
+                RNError: true,
+                RNFatal: true,
+                'start-timer': true,
+                'end-timer': true,
+            }
         };
         this.styleSheet = getStyleSheet(props)
     }
@@ -56,9 +70,14 @@ export default class Debug extends React.Component {
         return !this.props.paused && !this.state.paused;
     }
 
+    filterRowsByLogLevel(rows) {
+        return rows.filter(row => this.state.logLevelFilters[row.level] !== false);
+    }
+
     renderList(props) {
         if (this.isPaused()) {
-            this.preparedRows = this.prepareRows(props.rows);
+            const filteredRows = this.filterRowsByLogLevel(props.rows);
+            this.preparedRows = this.prepareRows(filteredRows);
             let rowsToRender = [];
             if(this.preparedRows){
                 rowsToRender = Object.values(this.preparedRows);
@@ -84,6 +103,27 @@ export default class Debug extends React.Component {
 
     onClearButtonPressed() {
         debugService.clear();
+    }
+
+    onFilterButtonPressed() {
+        this.setState({
+            showFilterMenu: !this.state.showFilterMenu,
+        });
+    }
+
+    toggleLogLevelFilter(level) {
+        this.setState(
+            prevState => ({
+                logLevelFilters: {
+                    ...prevState.logLevelFilters,
+                    [level]: !prevState.logLevelFilters[level]
+                }
+            }),
+            () => {
+                // Re-render the list with updated filters
+                this.renderList(this.props);
+            }
+        );
     }
 
     _formatTimeStamp(timeStamp, rowData) {
@@ -187,19 +227,31 @@ export default class Debug extends React.Component {
                     >
                         {`[${rowData.level.toUpperCase()}]`}
                     </Text>}
-                    <Text
-                        style={[
-                            this.styleSheet.logRowMessage,
-                            this.styleSheet.logRowMessageMain,
-                            {
-                                color: rowData.color,
-                            },
-                        ]}
-                        numberOfLines={rowData.expanded ? undefined : 1}
-                        ellipsizeMode="tail"
-                    >
-                        {rowData.message}
-                    </Text>
+                    <View style={this.styleSheet.logRowMessageMain}>
+                        {rowData.expanded && (
+                            <View style={this.styleSheet.expandedHeader}>
+                                <Text style={this.styleSheet.expandedTimestamp}>
+                                    {rowData.timeStamp.format("YYYY-MM-DD HH:mm:ss.SSS")}
+                                </Text>
+                                <Text style={[this.styleSheet.expandedLevel, { color: rowData.color }]}>
+                                    {rowData.level.toUpperCase()}
+                                </Text>
+                            </View>
+                        )}
+                        <Text
+                            style={[
+                                this.styleSheet.logRowMessage,
+                                {
+                                    color: rowData.color,
+                                    paddingHorizontal: 0,
+                                },
+                            ]}
+                            numberOfLines={rowData.expanded ? undefined : 1}
+                            ellipsizeMode="tail"
+                        >
+                            {rowData.message}
+                        </Text>
+                    </View>
                     {this.props.renderTimestamp && <Text style={this.styleSheet.logRowMessage}>
                         {this._formatTimeStamp(rowData.timeStamp, rowData)}
                     </Text>}
@@ -251,38 +303,84 @@ export default class Debug extends React.Component {
         }
     }
 
+    renderFilterMenu() {
+        if (!this.state.showFilterMenu) return null;
+
+        const logLevels = ['log', 'debug', 'info', 'error', 'fatal', 'success', 'separator'];
+
+        return (
+            <View style={this.styleSheet.filterMenu}>
+                <Text style={this.styleSheet.filterMenuTitle}>Filter Log Levels:</Text>
+                <View style={this.styleSheet.filterMenuItems}>
+                    {logLevels.map(level => (
+                        <TouchableOpacity
+                            key={level}
+                            style={[
+                                this.styleSheet.filterMenuItem,
+                                !this.state.logLevelFilters[level] && this.styleSheet.filterMenuItemDisabled
+                            ]}
+                            onPress={() => this.toggleLogLevelFilter(level)}
+                        >
+                            <Text style={[
+                                this.styleSheet.filterMenuItemText,
+                                !this.state.logLevelFilters[level] && this.styleSheet.filterMenuItemTextDisabled
+                            ]}>
+                                {this.state.logLevelFilters[level] ? '✓ ' : '✗ '}
+                                {level.toUpperCase()}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+        );
+    }
+
     renderToolbar(){
         if(this.props.renderToolbar){
             let options = {
-                onPause: this.onPauseButtonPressed.bind(this), 
-                onClear: this.onClearButtonPressed.bind(this), 
+                onPause: this.onPauseButtonPressed.bind(this),
+                onClear: this.onClearButtonPressed.bind(this),
+                onFilter: this.onFilterButtonPressed.bind(this),
                 length: this.state.rows
             }
             return this.props.renderToolbar(options)
         }
-        return (<View style={this.styleSheet.toolBar}>
-            <TouchableOpacity
-                style={this.styleSheet.toolbarButton}
-                onPress={this.onPauseButtonPressed.bind(this)}
-            >
-                <Text style={this.styleSheet.toolbarButtonText}>
-                    {this.state.paused ? "Resume log" : "Pause log"}
-                </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                onPress={this.onCenterColumnPressed.bind(this)}
-                style={this.styleSheet.centerColumn}
-            >
-                <Text style={this.styleSheet.titleText}>{`${this.state.rows
-                    .length} rows`}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={this.styleSheet.toolbarButton}
-                onPress={this.onClearButtonPressed.bind(this)}
-            >
-                <Text style={this.styleSheet.toolbarButtonText}>Clear log</Text>
-            </TouchableOpacity>
-        </View>)
+        return (
+            <View>
+                <View style={this.styleSheet.toolBar}>
+                    <TouchableOpacity
+                        style={this.styleSheet.toolbarButton}
+                        onPress={this.onPauseButtonPressed.bind(this)}
+                    >
+                        <Text style={this.styleSheet.toolbarButtonText}>
+                            {this.state.paused ? "Resume" : "Pause"}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={this.onCenterColumnPressed.bind(this)}
+                        style={this.styleSheet.centerColumn}
+                    >
+                        <Text style={this.styleSheet.titleText}>{`${this.state.dataSource.length} / ${this.state.rows.length}`}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            this.styleSheet.toolbarButton,
+                            this.state.showFilterMenu && this.styleSheet.toolbarButtonActive
+                        ]}
+                        onPress={this.onFilterButtonPressed.bind(this)}
+                    >
+                        <Text style={this.styleSheet.toolbarButtonText}>Filter</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={this.styleSheet.toolbarButton}
+                        onPress={this.onClearButtonPressed.bind(this)}
+                    >
+                        <Text style={this.styleSheet.toolbarButtonText}>Clear</Text>
+                    </TouchableOpacity>
+                </View>
+                {this.renderFilterMenu()}
+            </View>
+        );
     }
 
     render() {
@@ -344,12 +442,18 @@ const getStyleSheet = (props)=>{
             shadowOpacity: 0.2,
             shadowRadius: 2,
             elevation: 2,
+            marginHorizontal: 4,
+        },
+        toolbarButtonActive: {
+            backgroundColor: props.selectColor,
+            borderWidth: 1,
+            borderColor: props.separatorColor,
         },
         centerColumn: {
             flex: 1,
             alignItems: "center",
             justifyContent: "center",
-            paddingHorizontal: 12,
+            paddingHorizontal: 8,
         },
         titleText: {
             color: props.textColor,
@@ -415,6 +519,28 @@ const getStyleSheet = (props)=>{
         logRowMessageMain: {
             flex: 1,
         },
+        expandedHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 6,
+            paddingBottom: 4,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: props.borderColor,
+            opacity: 0.6,
+        },
+        expandedTimestamp: {
+            color: props.textColor,
+            fontFamily: "System",
+            fontSize: 11,
+            opacity: 0.7,
+            marginRight: 12,
+        },
+        expandedLevel: {
+            fontFamily: "System",
+            fontSize: 11,
+            fontWeight: "700",
+            letterSpacing: 0.5,
+        },
         welcome: {
             fontSize: 20,
             textAlign: "center",
@@ -424,6 +550,47 @@ const getStyleSheet = (props)=>{
             textAlign: "center",
             color: "#333333",
             marginBottom: 5,
+        },
+        filterMenu: {
+            backgroundColor: props.backgroundColor,
+            borderBottomWidth: 1,
+            borderColor: props.borderColor,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+        },
+        filterMenuTitle: {
+            color: props.textColor,
+            fontSize: 13,
+            fontWeight: "600",
+            marginBottom: 12,
+            opacity: 0.9,
+        },
+        filterMenuItems: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+        },
+        filterMenuItem: {
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+            borderRadius: 6,
+            backgroundColor: props.borderColor,
+            marginRight: 8,
+            marginBottom: 8,
+        },
+        filterMenuItemDisabled: {
+            backgroundColor: 'transparent',
+            borderWidth: 1,
+            borderColor: props.borderColor,
+            opacity: 0.5,
+        },
+        filterMenuItemText: {
+            color: props.textColor,
+            fontSize: 12,
+            fontWeight: "600",
+        },
+        filterMenuItemTextDisabled: {
+            opacity: 0.6,
         },
     });
 }
